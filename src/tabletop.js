@@ -47,8 +47,6 @@
     Initialize with Tabletop.init( { key: '0AjAPaAU9MeLFdHUxTlJiVVRYNGRJQnRmSnQwTlpoUXc' } )
       OR!
     Initialize with Tabletop.init( { key: 'https://docs.google.com/spreadsheet/pub?hl=en_US&hl=en_US&key=0AjAPaAU9MeLFdHUxTlJiVVRYNGRJQnRmSnQwTlpoUXc&output=html&widget=true' } )
-      OR!
-    Initialize with Tabletop.init('0AjAPaAU9MeLFdHUxTlJiVVRYNGRJQnRmSnQwTlpoUXc')
   */
 
   var Tabletop = function(options) {
@@ -56,11 +54,10 @@
     if(!this || !(this instanceof Tabletop)) {
       return new Tabletop(options);
     }
-    
-    if(typeof(options) === 'string') {
-      options = { key : options };
-    }
 
+	//this.scopes = options.scopes || ["https://www.googleapis.com/auth/spreadsheets.readonly"];
+	this.apiKey = options.apiKey;
+	
     this.callback = options.callback;
     this.wanted = options.wanted || [];
     this.key = options.key;
@@ -72,13 +69,12 @@
     this.debug = !!options.debug;
     this.query = options.query || '';
     this.orderby = options.orderby;
-    this.endpoint = options.endpoint || 'https://spreadsheets.google.com';
+    this.endpoint = options.endpoint || 'https://sheets.googleapis.com';
     this.singleton = !!options.singleton;
     this.simpleUrl = !!(options.simpleUrl || options.simple_url); //jshint ignore:line
     this.callbackContext = options.callbackContext;
-    // Default to on, unless there's a proxy, in which case it's default off
-    this.prettyColumnNames = typeof(options.prettyColumnNames) === 'undefined' ? !options.proxy : options.prettyColumnNames;
-    
+    this.prettyColumnNames = false;
+	
     if(typeof(options.proxy) !== 'undefined') {
       // Remove trailing slash, it will break the app
       this.endpoint = options.proxy.replace(/\/$/,'');
@@ -125,14 +121,8 @@
     this.modelNames = [];
     this.model_names = this.modelNames; //jshint ignore:line
 
-    this.baseJsonPath = '/feeds/worksheets/' + this.key + '/public/basic?alt=';
-
-    if (inNodeJS || supportsCORS) {
-      this.baseJsonPath += 'json';
-    } else {
-      this.baseJsonPath += 'json-in-script';
-    }
-    
+    this.baseJsonPath = '/v4/spreadsheets/' + this.key + "?key=" + this.apiKey;
+	
     if(!this.wait) {
       this.fetch();
     }
@@ -324,21 +314,17 @@
     loadSheets: function(data) {
       var i, ilen;
       var toLoad = [];
-      this.googleSheetName = data.feed.title.$t;
+      this.googleSheetName = data.properties.title;
       this.foundSheetNames = [];
 
-      for (i = 0, ilen = data.feed.entry.length; i < ilen ; i++) {
-        this.foundSheetNames.push(data.feed.entry[i].title.$t);
+      for (i = 0, ilen = data.sheets.length; i < ilen ; i++) {
         // Only pull in desired sheets to reduce loading
-        if (this.isWanted(data.feed.entry[i].content.$t)) {
-          var linkIdx = data.feed.entry[i].link.length-1;
-          var sheetId = data.feed.entry[i].link[linkIdx].href.split('/').pop();
-          var jsonPath = '/feeds/list/' + this.key + '/' + sheetId + '/public/values?alt=';
-          if (inNodeJS || supportsCORS) {
-            jsonPath += 'json';
-          } else {
-            jsonPath += 'json-in-script';
-          }
+		var sheetProps = data.sheets[i].properties;
+        this.foundSheetNames.push(sheetProps.title);
+
+        if (this.isWanted(sheetProps.title)) {
+		  var sheetId = sheetProps.sheetId;
+          var jsonPath = '/v4/spreadsheets/' + this.key + '/values/' + sheetProps.title + "?key=" + this.apiKey;
           if (this.query) {
             // Query Language Reference (0.7)
             jsonPath += '&tq=' + this.query;
@@ -439,13 +425,23 @@
     var i, j, ilen, jlen;
     this.columnNames = [];
     this.column_names = this.columnNames; // jshint ignore:line
-    this.name = options.data.feed.title.$t;
+	
+	console.log(options.data);
+	
+	var range = options.data.range;
+	if (range.lastIndexOf('!') > -1){
+		this.name = range.substr(0, range.lastIndexOf('!'));
+	} else {
+		this.name = range;		
+	}
+	
     this.tabletop = options.tabletop;
     this.elements = [];
     this.onReady = options.onReady;
     this.raw = options.data; // A copy of the sheet's raw data, for accessing minutiae
 
-    if (typeof(options.data.feed.entry) === 'undefined') {
+   // if (typeof(options.data.feed.entry) === 'undefined') {
+	if (typeof(options.data.values) === 'undefined') {
       options.tabletop.log('Missing data for ' + this.name + ', make sure you didn\'t forget column headers');
       this.originalColumns = [];
       this.elements = [];
@@ -453,32 +449,35 @@
       return;
     }
     
-    for (var key in options.data.feed.entry[0]){
+	
+   // for (var key in options.data.feed.entry[0]){
+/* 	   for (var key in options.data.values[0]){
       if (/^gsx/.test(key)) {
         this.columnNames.push(key.replace('gsx$',''));
       }
-    }
+    } */
+	this.columnNames = options.data.values[0];
+	
 
     this.originalColumns = this.columnNames;
     this.original_columns = this.originalColumns; // jshint ignore:line
-    
-    for (i = 0, ilen =  options.data.feed.entry.length ; i < ilen; i++) {
-      var source = options.data.feed.entry[i];
+	
+    for (i = 1, ilen =  options.data.values.length ; i < ilen; i++) {
+      var cell = options.data.values[i];
       var element = {};
       for (j = 0, jlen = this.columnNames.length; j < jlen ; j++) {
-        var cell = source['gsx$' + this.columnNames[j]];
         if (typeof(cell) !== 'undefined') {
-          if (options.parseNumbers && cell.$t !== '' && !isNaN(cell.$t)) {
-            element[this.columnNames[j]] = +cell.$t;
+          if (options.parseNumbers && cell[j] !== '' && !isNaN(cell[j])) {
+            element[this.columnNames[j]] = +cell[j];
           } else {
-            element[this.columnNames[j]] = cell.$t;
+            element[this.columnNames[j]] = cell[j];
           }
         } else {
           element[this.columnNames[j]] = '';
         }
       }
       if (element.rowNumber === undefined) {
-        element.rowNumber = i + 1;
+        element.rowNumber = i;
       }
         
       if (options.postProcess) {
@@ -503,6 +502,7 @@
       return this.elements;
     },
     
+	
     fetchPrettyColumns: function() {
       if (!this.raw.feed.link[3]) {
         return this.ready();
@@ -524,6 +524,7 @@
      * with keys of Google-formatted "columnName"
      * and values of human-readable "Column name"
      */
+	 
     loadPrettyColumns: function(data) {
       var prettyColumns = {};
 
@@ -546,11 +547,13 @@
       this.ready();
     },
     
+	
     /*
      * Go through each row, substitutiting
      * Google-formatted "columnName"
      * with human-readable "Column name"
      */
+	 
     prettifyElements: function() {
       var prettyElements = [],
           orderedPrettyNames = [],
