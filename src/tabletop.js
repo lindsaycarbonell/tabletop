@@ -44,9 +44,9 @@
   };
   
   /*
-    Initialize with Tabletop.init( { key: '0AjAPaAU9MeLFdHUxTlJiVVRYNGRJQnRmSnQwTlpoUXc' } )
+    Initialize with Tabletop.init( { apiKey = 'ABC123', key: '0AjAPaAU9MeLFdHUxTlJiVVRYNGRJQnRmSnQwTlpoUXc' } )
       OR!
-    Initialize with Tabletop.init( { key: 'https://docs.google.com/spreadsheet/pub?hl=en_US&hl=en_US&key=0AjAPaAU9MeLFdHUxTlJiVVRYNGRJQnRmSnQwTlpoUXc&output=html&widget=true' } )
+    Initialize with Tabletop.init( { apiKey = 'ABC123', key: 'https://docs.google.com/spreadsheet/pub?hl=en_US&hl=en_US&key=0AjAPaAU9MeLFdHUxTlJiVVRYNGRJQnRmSnQwTlpoUXc&output=html&widget=true' } )
   */
 
   var Tabletop = function(options) {
@@ -55,9 +55,7 @@
       return new Tabletop(options);
     }
 
-	//this.scopes = options.scopes || ["https://www.googleapis.com/auth/spreadsheets.readonly"];
-	this.apiKey = options.apiKey;
-	
+	this.apiKey = options.apiKey;	
     this.callback = options.callback;
     this.wanted = options.wanted || [];
     this.key = options.key;
@@ -67,13 +65,10 @@
     this.reverse = !!options.reverse;
     this.postProcess = options.postProcess;
     this.debug = !!options.debug;
-    this.query = options.query || '';
-    this.orderby = options.orderby;
     this.endpoint = options.endpoint || 'https://sheets.googleapis.com';
     this.singleton = !!options.singleton;
     this.simpleUrl = !!(options.simpleUrl || options.simple_url); //jshint ignore:line
     this.callbackContext = options.callbackContext;
-    this.prettyColumnNames = false;
 	
     if(typeof(options.proxy) !== 'undefined') {
       // Remove trailing slash, it will break the app
@@ -325,16 +320,6 @@
         if (this.isWanted(sheetProps.title)) {
 		  var sheetId = sheetProps.sheetId;
           var jsonPath = '/v4/spreadsheets/' + this.key + '/values/' + sheetProps.title + "?key=" + this.apiKey;
-          if (this.query) {
-            // Query Language Reference (0.7)
-            jsonPath += '&tq=' + this.query;
-          }
-          if (this.orderby) {
-            jsonPath += '&orderby=column:' + this.orderby.toLowerCase();
-          }
-          if (this.reverse) {
-            jsonPath += '&reverse=true';
-          }
           toLoad.push(jsonPath);
         }
       }
@@ -384,10 +369,10 @@
       var that = this;
       new Tabletop.Model({ 
         data: data, 
+		reverse: this.reverse,
         parseNumbers: this.parseNumbers,
         postProcess: this.postProcess,
         tabletop: this,
-        prettyColumnNames: this.prettyColumnNames,
         onReady: function() {
           that.sheetReady(this);
         } 
@@ -422,10 +407,11 @@
     Options should be in the format { data: XXX }, with XXX being the list-based worksheet
   */
   Tabletop.Model = function(options) {
-    var i, j, ilen, jlen;
+    var i, ilen;
     this.columnNames = [];
     this.column_names = this.columnNames; // jshint ignore:line
 	
+	//DEBUG
 	console.log(options.data);
 	
 	var range = options.data.range;
@@ -448,24 +434,26 @@
       this.onReady.call(this);
       return;
     }
-    
 	
-   // for (var key in options.data.feed.entry[0]){
-/* 	   for (var key in options.data.values[0]){
-      if (/^gsx/.test(key)) {
-        this.columnNames.push(key.replace('gsx$',''));
-      }
-    } */
 	this.columnNames = options.data.values[0];
-	
 
     this.originalColumns = this.columnNames;
     this.original_columns = this.originalColumns; // jshint ignore:line
+		
+	if (options.reverse){
+		for (i = options.data.values.length - 1; i >= 1; i--) {
+			processRow.call(this, options.data.values[i]);
+		}		
+	} else {
+		for (i = 1, ilen =  options.data.values.length ; i < ilen; i++) {
+			processRow.call(this, options.data.values[i]);
+		}
+	}
 	
-    for (i = 1, ilen =  options.data.values.length ; i < ilen; i++) {
-      var cell = options.data.values[i];
+	function processRow(cell){
       var element = {};
-      for (j = 0, jlen = this.columnNames.length; j < jlen ; j++) {
+	  
+      for (var j = 0, jlen = this.columnNames.length; j < jlen ; j++) {
         if (typeof(cell) !== 'undefined') {
           if (options.parseNumbers && cell[j] !== '' && !isNaN(cell[j])) {
             element[this.columnNames[j]] = +cell[j];
@@ -484,14 +472,10 @@
         options.postProcess(element);
       }
         
-      this.elements.push(element);
-    }
+      this.elements.push(element);		
+	}
     
-    if (options.prettyColumnNames) {
-      this.fetchPrettyColumns();
-    } else {
-      this.onReady.call(this);
-    }
+    this.onReady.call(this);
   };
 
   Tabletop.Model.prototype = {
@@ -502,77 +486,8 @@
       return this.elements;
     },
     
-	
-    fetchPrettyColumns: function() {
-      if (!this.raw.feed.link[3]) {
-        return this.ready();
-      }
-        
-      var cellurl = this.raw.feed.link[3].href.replace('/feeds/list/', '/feeds/cells/').replace('https://spreadsheets.google.com', '');
-      var that = this;
-      this.tabletop.requestData(cellurl, function(data) {
-        that.loadPrettyColumns(data);
-      });
-    },
-    
     ready: function() {
       this.onReady.call(this);
-    },
-    
-    /*
-     * Store column names as an object
-     * with keys of Google-formatted "columnName"
-     * and values of human-readable "Column name"
-     */
-	 
-    loadPrettyColumns: function(data) {
-      var prettyColumns = {};
-
-      var columnNames = this.columnNames;
-
-      var i = 0;
-      var l = columnNames.length;
-
-      for (; i < l; i++) {
-        if (typeof data.feed.entry[i].content.$t !== 'undefined') {
-          prettyColumns[columnNames[i]] = data.feed.entry[i].content.$t;
-        } else {
-          prettyColumns[columnNames[i]] = columnNames[i];
-        }
-      }
-
-      this.prettyColumns = prettyColumns;
-      this.pretty_columns = this.prettyColumns; // jshint ignore:line
-      this.prettifyElements();
-      this.ready();
-    },
-    
-	
-    /*
-     * Go through each row, substitutiting
-     * Google-formatted "columnName"
-     * with human-readable "Column name"
-     */
-	 
-    prettifyElements: function() {
-      var prettyElements = [],
-          orderedPrettyNames = [],
-          i, j, ilen, jlen;
-
-      for (j = 0, jlen = this.columnNames.length; j < jlen ; j++) {
-        orderedPrettyNames.push(this.prettyColumns[this.columnNames[j]]);
-      }
-
-      for (i = 0, ilen = this.elements.length; i < ilen; i++) {
-        var newElement = {};
-        for (j = 0, jlen = this.columnNames.length; j < jlen ; j++) {
-          var newColumnName = this.prettyColumns[this.columnNames[j]];
-          newElement[newColumnName] = this.elements[i][this.columnNames[j]];
-        }
-        prettyElements.push(newElement);
-      }
-      this.elements = prettyElements;
-      this.columnNames = orderedPrettyNames;
     },
 
     /*
