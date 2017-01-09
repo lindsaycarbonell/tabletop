@@ -103,7 +103,7 @@ You pass in either `key` as the actual spreadsheet key, or just the full publish
 
 ## Tabletop initialization options
 
-### apiKey
+#### apiKey
 `apiKey` is your generated API key, which you can retrieve via Step 1 of "Getting Started".
 
 #### key
