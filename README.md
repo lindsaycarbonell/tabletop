@@ -11,9 +11,9 @@ Tabletop.js easily integrates Google Spreadsheets with templating systems and an
 
 **Step One:** Retrieve your API key and enable the Google Sheets API.
 
-**Step Two:** Use the blue "Share" button to get the link for your spreadsheet.
+**Step Two:** Use the blue "Share" button to get the URL for your spreadsheet.
 
-**Step Three:** Write a page that invokes Tabletop with the published URL Google gives you.
+**Step Three:** Write a page that invokes Tabletop with the URL Google gives you.
 
     function init() {
       Tabletop.init( { key: 'https://docs.google.com/spreadsheets/d/1Ndpyra7HBYIgmRWIY4Q2h0xQO9EG0zpA5vgVEhLg7AE/edit?usp=sharing',
@@ -38,15 +38,19 @@ Yes, it's that easy.
 
 ### 1) Retrieve your API Key
 
-Get a Google API key by going to <a href="console.developers.google.com">the Google Developers' Console</a>
+Get a Google API key by going to [the Google Developers' Console](console.developers.google.com)
 
-<img src="readme/step1_1.jpg" />
+![step one](readme/step1_1.jpg)
 Click on the Sheets API link under "Library".
 
-<img src="readme/step1_4.jpg" />
+<br>
+
+![step two](readme/step1_2.jpg)
 Enable the Google Sheets API.
 
-<img src="readme/step1_5.jpg" />
+<br>
+
+![step three](readme/step1_3.jpg)
 Create an API key through "Credentials".
 
 An API key will be generated for you to use in your web app. **It is very important that you keep this key secure**. Do not save this key into a public repository — there are a few ways you can keep your key secure, which you can [read about here](#securing-your-api-key).
