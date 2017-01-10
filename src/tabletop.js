@@ -312,12 +312,15 @@
       this.googleSheetName = data.properties.title;
       this.foundSheetNames = [];
 
-      for (i = 0, ilen = data.sheets.length; i < ilen ; i++) {
+	  ilen = this.simpleSheet ? 1 : data.sheets.length;
+
+      for (i = 0; i < ilen ; i++) {
         // Only pull in desired sheets to reduce loading
 		var sheetProps = data.sheets[i].properties;
         this.foundSheetNames.push(sheetProps.title);
 
-        if (this.isWanted(sheetProps.title)) {
+		// If simpleSheet is true, load the sheet regardless of the 'wanted' list
+        if (this.simpleSheet || this.isWanted(sheetProps.title)) {
 		  var sheetId = sheetProps.sheetId;
           var jsonPath = '/v4/spreadsheets/' + this.key + '/values/' + sheetProps.title + "?key=" + this.apiKey;
           toLoad.push(jsonPath);
