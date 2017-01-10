@@ -6,49 +6,54 @@ Tabletop.js easily integrates Google Spreadsheets with templating systems and an
 
 [![Build Status](https://travis-ci.org/jsoma/tabletop.svg?branch=master)](https://travis-ci.org/jsoma/tabletop)
 
+
 ### Like how easy?
 
-**Step One:** make a Google Spreadsheet and "Publish to Web."
+**Step One:** Retrieve your API key and enable the Google Sheets API.
 
-**Step Two:** Write a page that invokes Tabletop with the published URL Google gives you.
+**Step Two:** Use the blue "Share" button to get the URL for your spreadsheet.
+
+**Step Three:** Write a page that invokes Tabletop with the URL Google gives you.
 
     function init() {
-      Tabletop.init( { key: 'https://docs.google.com/spreadsheets/d/0AmYzu_s7QHsmdDNZUzRlYldnWTZCLXdrMXlYQzVxSFE/pubhtml',
-                       callback: function(data, tabletop) { 
+      Tabletop.init( { key: 'https://docs.google.com/spreadsheets/d/1Ndpyra7HBYIgmRWIY4Q2h0xQO9EG0zpA5vgVEhLg7AE/edit?usp=sharing',
+                      apiKey: 'YOURAPIKEYHERE',
+                       callback: function(data, tabletop) {
 	                       console.log(data)
                        },
                        simpleSheet: true } )
     }
     window.addEventListener('DOMContentLoaded', init)
 
-**Step Three:** Enjoy your data!
+**Step Four:** Enjoy your data!
 
-    [ { name: "Carrot", category: "Vegetable", healthiness: "Adequate" }, 
-      { name: "Pork Shoulder", category: "Meat", healthiness: "Questionable" }, 
+    [ { name: "Carrot", category: "Vegetable", healthiness: "Adequate" },
+      { name: "Pork Shoulder", category: "Meat", healthiness: "Questionable" },
       { name: "Bubblegum", category: "Candy", healthiness: "Super High"} ]
 
 Yes, it's that easy.
 
-**NOTE:** If your share URL has a `/d/e` in it, try refreshing the page to see if it goes away. If it doesn't, [try this](#if-your-publish-to-web-url-doesnt-work).
 
 # Getting Started
 
-### 1) Publishing your Google Sheet
+### 1) Retrieve your API Key
 
-_The first step is to get your data out into a form Tabletop can digest_
+Get a Google API key by going to [the Google Developers' Console](console.developers.google.com)
 
-Make a [Google Spreadsheet](http://drive.google.com). Give it some column headers, give it some content.
+![step one](readme/step1_1.jpg)
+Click on the Sheets API link under "Library".
 
-    Name            Category   Healthiness
-    Carrot          Vegetable  Adequate
-    Pork Shoulder   Meat       Questionable
-    Bubblegum       Candy      Super High
-  
-Now go up to the `File` menu and pick `Publish to the web`. Fiddle with the options, then click `Start publishing`. A URL will appear, something like `https://docs.google.com/spreadsheets/d/1sbyMINQHPsJctjAtMW0lCfLrcpMqoGMOJj6AN-sNQrc/pubhtml` (although it might look different if you're using an especially old or new Sheet).
+<br>
 
-Copy that! In theory you're interested in the `1sbyMINQHPsJctjAtMW0lCfLrcpMqoGMOJj6AN-sNQrc` but you can use the whole thing if you want.
+![step two](readme/step1_2.jpg)
+Enable the Google Sheets API.
 
-If your URL has a `/d/e` in it [read this part](#if-your-publish-to-web-url-doesnt-work).
+<br>
+
+![step three](readme/step1_3.jpg)
+Create an API key through "Credentials".
+
+An API key will be generated for you to use in your web app. **It is very important that you keep this key secure**. Do not save this key into a public repository — there are a few ways you can keep your key secure, which you can [read about here](#securing-your-api-key).
 
 ### 2) Setting up Tabletop
 
@@ -74,21 +79,12 @@ Include the Tabletop JavaScript file in your HTML, then try the following, subst
       window.addEventListener('DOMContentLoaded', init)
     </script>
 
-After Tabletop reads your Sheet, it hops to the `showInfo` function with your data. Open up your console and check out the data it retrieved. All of those rows were turned right into objects! **See how easy that was?** 
+After Tabletop reads your Sheet, it hops to the `showInfo` function with your data. Open up your console and check out the data it retrieved. All of those rows were turned right into objects! **See how easy that was?**
 
 ### 3) Honestly, that's it.
 
 Check out the reference and the examples, but basically you're set. The only thing to think about right _now_ is if you want to deal with multiple sheets you can get rid of `simpleSheet: true` (more on that later).
 
-You might also be interested in the publishing/republishing/publish-as-it-changes aspects of Google Spreadsheets, but you'll need to google that for any specifics.
-
-### If your Publish to Web URL doesn't work
-
-For an unknown reason the **Publish to Web** URL sometimes doesn't work, especially if it has a `/d/e` in it. If yours has a `/d/e`, try refreshing the page to see if it goes away. If it doesn't the following steps will work:
-
-1. Click the **Share** link in the upper right-hand corner
-2. **Change...** access to "On - Anyone with a link"
-3. Use the URL from that window
 
 # Reference
 
@@ -96,16 +92,19 @@ For an unknown reason the **Publish to Web** URL sometimes doesn't work, especia
 
 The simplest Tabletop initialization works like this:
 
-    var tabletop = Tabletop.init({ 
-      key: '1sbyMINQHPsJctjAtMW0lCfLrcpMqoGMOJj6AN-sNQrc', 
-      callback: showInfo 
+    var tabletop = Tabletop.init({
+      key: '1sbyMINQHPsJctjAtMW0lCfLrcpMqoGMOJj6AN-sNQrc',
+      callback: showInfo
     })
-  
+
 You pass in either `key` as the actual spreadsheet key, or just the full published-spreadsheet URL.
 
 `showInfo` is a function elsewhere in your code that gets called with your data.
 
 ## Tabletop initialization options
+
+#### apiKey
+`apiKey` is your generated API key, which you can retrieve via Step 1 of "Getting Started".
 
 #### key
 
@@ -141,10 +140,10 @@ For example:
  postProcess: function(element) {
    // Combine first and last name into a new column
    element["full_name"] = element["first_name"] + " " + element["last_name"];
-   
+
    // Convert string date into Date date
    element["timestamp"] = Date.parse(element["displaydate"]);
- } 
+ }
 ````
 
 #### wanted
@@ -199,7 +198,7 @@ Once you're in the callback, you get the data **and** a `tabletop` object. That 
 
 #### .sheets()
 
-`.sheets()` are the `Tabletop.Model`s that were populated, one per worksheet. You access a sheet by its name. 
+`.sheets()` are the `Tabletop.Model`s that were populated, one per worksheet. You access a sheet by its name.
 
 `.sheets(name)` is how you access a specific sheet. Say I have a worksheet called **Cats I Know**, I'll access it via `tabletop.sheets("Cats I Know")`
 
@@ -297,6 +296,28 @@ You can point `proxy` at anything you'd like as long as it has `KEY` and `KEY-SH
 
 # Notes
 
+## Version 3 Support
+
+If you are still using version 3, you may continue using the version 3 CDN for Tabletop until support for the Google Sheets API v3 is removed. To update from v3 to v4, there are a few steps you can follow:
+
+- change the 'key' option to the share link, which can be copied from the blue "Share" button in the top right corner of your sheet
+-
+
+**NOTE:** If your share URL has a `/d/e` in it, try refreshing the page to see if it goes away. If it doesn't, [try this](#if-your-publish-to-web-url-doesnt-work).
+
+## If your Publish to Web URL doesn't work
+
+For an unknown reason the **Publish to Web** URL sometimes doesn't work, especially if it has a `/d/e` in it. If yours has a `/d/e`, try refreshing the page to see if it goes away. If it doesn't the following steps will work:
+
+1. Click the **Share** link in the upper right-hand corner
+2. **Change...** access to "On - Anyone with a link"
+3. Use the URL from that window
+
+
+## Securing your API key
+
+There are several options to secure your API key, but the easiest is to use a .gitignore file to store your API key into a JS variable and reference that variable throughout your app. [see this example](http://stackoverflow.com/questions/36417573/hiding-api-key-in-simple-javascript-jquery-app-gitignore)
+
 ## Strange behavior
 
 **Empty tables are trouble.** We can't get column names from them (c'mon, Google!), so don't be too confused when a table with 0 rows is coming back with an empty `.column_names` or your code starts throwing weird errors when processing the results.
@@ -311,7 +332,7 @@ Turn on debugging by passing `debug: true` when you initialize Tabletop. Check o
 
 **The more examples the better, right?** Feel free to fork or contact me if you have a good example of something you've done.
 
-A [contextual video player](http://www.aljazeera.com/indepth/interactive/2012/04/20124107156511888.html) with [popcorn.js](http://popcornjs.org) by [@maboa](https://twitter.com/maboa) 
+A [contextual video player](http://www.aljazeera.com/indepth/interactive/2012/04/20124107156511888.html) with [popcorn.js](http://popcornjs.org) by [@maboa](https://twitter.com/maboa)
 
 The [WNYC mayoral tracker](http://project.wnyc.org/elections/mayor-tracker/) uses Tabletop along with [Backbone.js](http://backbonejs.org)
 
